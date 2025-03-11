@@ -13,19 +13,22 @@ import io.lettuce.core.RedisClient;
 import io.lettuce.core.RedisURI;
 import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.api.sync.RedisStringCommands;
+import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.hibernate.cfg.Configuration;
 import org.hibernate.cfg.Environment;
+import org.openjdk.jmh.annotations.*;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static java.util.Objects.nonNull;
-
+@Slf4j
 public class Main {
     private final SessionFactory sessionFactory;
     private final RedisClient redisClient;
@@ -134,7 +137,7 @@ public class Main {
 
         }
     }
-    private void testRedisData(List<Integer> ids) {
+    public void testRedisData(List<Integer> ids) {
         try (StatefulRedisConnection<String, String> connection = redisClient.connect()) {
             RedisStringCommands<String, String> sync = connection.sync();
             for (Integer id : ids) {
@@ -147,7 +150,7 @@ public class Main {
             }
         }
     }
-    private void testMysqlData(List<Integer> ids) {
+    public void testMysqlData(List<Integer> ids) {
         try (Session session = sessionFactory.getCurrentSession()) {
             session.beginTransaction();
             for (Integer id : ids) {
@@ -159,6 +162,7 @@ public class Main {
     }
     public static void main(String[] args) {
         Main main = new Main();
+        MyBenchmark myBenchmark = new MyBenchmark();
         List<City> allCities = main.fetchData(main);
         List<CityCountry> preparedData = main.transformData(allCities);
         main.pushToRedis(preparedData);
@@ -175,8 +179,8 @@ public class Main {
         main.testMysqlData(ids);
         long stopMysql = System.currentTimeMillis();
 
-        System.out.printf("%s:\t%d ms\n", "Redis", (stopRedis - startRedis));
-        System.out.printf("%s:\t%d ms\n", "MySQL", (stopMysql - startMysql));
+        log.info("Redis: " + (stopRedis - startRedis) + " ms");
+        log.info("MySQL: " + (stopMysql - startMysql) + " ms");
 
         main.shutdown();
     }
